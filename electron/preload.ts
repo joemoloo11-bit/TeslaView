@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { pathToFileURL } from 'url'
 
 const api = {
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
@@ -29,10 +28,12 @@ const api = {
   },
 
   toLocalFileUrl: (absolutePath: string) => {
-    // Convert to file:// URL, then rewrite scheme so the custom protocol
-    // handler (which forwards Range headers for video streaming) handles it.
-    const fileUrl = pathToFileURL(absolutePath).toString()
-    return fileUrl.replace('file://', 'localfile://')
+    // Build a file:// URL without any Node imports (Vite polyfills `url`
+    // with a browser version so pathToFileURL isn't available here).
+    // Windows:  C:\foo\bar.mp4  → file:///C:/foo/bar.mp4
+    // POSIX:    /foo/bar.mp4    → file:///foo/bar.mp4
+    const slashed = absolutePath.replace(/\\/g, '/')
+    return slashed.startsWith('/') ? `file://${slashed}` : `file:///${slashed}`
   }
 }
 
