@@ -1,0 +1,272 @@
+import { app, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron'
+import { join, extname } from 'path'
+import { existsSync, readdirSync, statSync, readFileSync } from 'fs'
+import { pathToFileURL } from 'url'
+import { spawn } from 'child_process'
+
+let mainWindow: BrowserWindow | null = null
+
+function createWindow(): void {
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 1024,
+    minHeight: 700,
+    backgroundColor: '#0d0d0d',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: false // needed to allow local video file access via file://
+    },
+    show: false
+  })
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show()
+  })
+
+  if (process.env.ELECTRON_RENDERER_URL) {
+    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
+  } else {
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+}
+
+app.whenReady().then(() => {
+  // Register protocol to serve local video files safely
+  protocol.handle('localfile', (request) => {
+    const filePath = decodeURIComponent(request.url.replace('localfile://', ''))
+    return net.fetch(pathToFileURL(filePath).toString())
+  })
+
+  createWindow()
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+})
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit()
+})
+
+// ── IPC: Open folder dialog ────────────────────────────────────────────────
+ipcMain.handle('dialog:openFolder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openDirectory'],
+    title: 'Select TeslaCam Folder'
+  })
+  if (result.canceled) return null
+  return result.filePaths[0]
+})
+
+// ── IPC: Read directory entries ────────────────────────────────────────────
+ipcMain.handle('fs:readDir', (_event, dirPath: string) => {
+  if (!existsSync(dirPath)) return []
+  return readdirSync(dirPath).map((name) => {
+    const full = join(dirPath, name)
+    const stat = statSync(full)
+    return { name, path: full, isDirectory: stat.isDirectory(), size: stat.size, mtime: stat.mtimeMs }
+  })
+})
+
+// ── IPC: Read file as text ─────────────────────────────────────────────────
+ipcMain.handle('fs:readFile', (_event, filePath: string) => {
+  if (!existsSync(filePath)) return null
+  return readFileSync(filePath, 'utf-8')
+})
+
+// ── IPC: Stat a path ───────────────────────────────────────────────────────
+ipcMain.handle('fs:stat', (_event, filePath: string) => {
+  if (!existsSync(filePath)) return null
+  const s = statSync(filePath)
+  return { isDirectory: s.isDirectory(), size: s.size, mtime: s.mtimeMs }
+})
+
+// ── IPC: Get ffmpeg path ───────────────────────────────────────────────────
+ipcMain.handle('ffmpeg:path', () => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ffmpegPath = require('ffmpeg-static') as string
+    return ffmpegPath
+  } catch {
+    return null
+  }
+})
+
+// ── IPC: Extract telemetry via ffmpeg ─────────────────────────────────────
+ipcMain.handle('ffmpeg:extractTelemetry', async (_event, videoPath: string) => {
+  let ffmpegPath: string | null = null
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    ffmpegPath = require('ffmpeg-static') as string
+  } catch {
+    return null
+  }
+  if (!ffmpegPath || !existsSync(videoPath)) return null
+
+  return new Promise((resolve) => {
+    const args = [
+      '-i', videoPath,
+      '-codec', 'copy',
+      '-map', '0:v:0',
+      '-f', 'data',
+      '-'
+    ]
+    const proc = spawn(ffmpegPath!, args, { stdio: ['ignore', 'pipe', 'pipe'] })
+    const stderr: string[] = []
+    proc.stderr.on('data', (d: Buffer) => stderr.push(d.toString()))
+    proc.on('close', () => {
+      // Parse ffmpeg output for duration and other metadata
+      const stderrOut = stderr.join('')
+      const durationMatch = stderrOut.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/)
+      const fpsMatch = stderrOut.match(/(\d+(?:\.\d+)?)\s*fps/)
+      const resMatch = stderrOut.match(/(\d{3,4})x(\d{3,4})/)
+      if (durationMatch) {
+        const h = parseInt(durationMatch[1])
+        const m = parseInt(durationMatch[2])
+        const s = parseFloat(durationMatch[3])
+        resolve({
+          duration: h * 3600 + m * 60 + s,
+          fps: fpsMatch ? parseFloat(fpsMatch[1]) : 25,
+          width: resMatch ? parseInt(resMatch[1]) : 1280,
+          height: resMatch ? parseInt(resMatch[2]) : 960
+        })
+      } else {
+        resolve(null)
+      }
+    })
+  })
+})
+
+// ── IPC: Export video ──────────────────────────────────────────────────────
+ipcMain.handle(
+  'ffmpeg:export',
+  async (
+    event,
+    opts: {
+      cameras: { path: string; label: string }[]
+      layout: string
+      outputPath: string
+      quality: number
+      codec: string
+      resolution: 'native' | '1080p' | '720p' | '480p'
+      telemetryData: unknown
+    }
+  ) => {
+    let ffmpegPath: string | null = null
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      ffmpegPath = require('ffmpeg-static') as string
+    } catch {
+      return { success: false, error: 'ffmpeg not available' }
+    }
+
+    const { cameras, layout, outputPath, quality, codec, resolution } = opts
+    if (!ffmpegPath || cameras.length === 0) return { success: false, error: 'No cameras selected' }
+
+    // Build filter complex based on layout
+    const inputs = cameras.map((c) => ['-i', c.path]).flat()
+    let filterComplex = ''
+    let mapArgs: string[] = []
+
+    const scaleTarget =
+      resolution === '1080p' ? 1920
+      : resolution === '720p' ? 1280
+      : resolution === '480p' ? 854
+      : 0
+
+    const scalePart = (idx: number) =>
+      scaleTarget > 0 ? `[${idx}:v]scale=${scaleTarget}:-2[v${idx}];` : `[${idx}:v]copy[v${idx}];`
+
+    if (layout === 'single' && cameras.length >= 1) {
+      filterComplex = `${scalePart(0)}[v0]null[out]`
+      mapArgs = ['-map', '[out]']
+    } else if (layout === '2x2' && cameras.length >= 2) {
+      const cnt = Math.min(cameras.length, 4)
+      const scales = Array.from({ length: cnt }, (_, i) => scalePart(i)).join('')
+      if (cnt === 2) {
+        filterComplex = `${scales}[v0][v1]hstack=inputs=2[out]`
+      } else if (cnt === 3) {
+        filterComplex = `${scales}[v0][v1]hstack=inputs=2[top];[top][v2]vstack=inputs=2[out]`
+      } else {
+        filterComplex = `${scales}[v0][v1]hstack=inputs=2[top];[v2][v3]hstack=inputs=2[bot];[top][bot]vstack=inputs=2[out]`
+      }
+      mapArgs = ['-map', '[out]']
+    } else if (layout === 'tesla' && cameras.length >= 1) {
+      // Front large top, smaller cameras bottom row
+      const cnt = Math.min(cameras.length, 4)
+      const scales = Array.from({ length: cnt }, (_, i) => scalePart(i)).join('')
+      if (cnt === 1) {
+        filterComplex = `${scales}[v0]null[out]`
+      } else if (cnt === 2) {
+        filterComplex = `${scales}[v0][v1]vstack=inputs=2[out]`
+      } else if (cnt === 3) {
+        filterComplex = `${scales}[v1][v2]hstack=inputs=2[bot];[v0][bot]vstack=inputs=2[out]`
+      } else {
+        filterComplex = `${scales}[v1][v2][v3]hstack=inputs=3[bot];[v0][bot]vstack=inputs=2[out]`
+      }
+      mapArgs = ['-map', '[out]']
+    } else {
+      // fallback: just take first camera
+      filterComplex = `${scalePart(0)}[v0]null[out]`
+      mapArgs = ['-map', '[out]']
+    }
+
+    const codecArgs =
+      codec === 'h265'
+        ? ['-c:v', 'libx265', '-crf', String(quality), '-preset', 'medium', '-tag:v', 'hvc1']
+        : ['-c:v', 'libx264', '-crf', String(quality), '-preset', 'medium']
+
+    const args = [
+      ...inputs,
+      '-filter_complex', filterComplex,
+      ...mapArgs,
+      ...codecArgs,
+      '-an',
+      '-y',
+      outputPath
+    ]
+
+    return new Promise((resolve) => {
+      const proc = spawn(ffmpegPath!, args)
+      const stderr: string[] = []
+      proc.stderr.on('data', (d: Buffer) => {
+        stderr.push(d.toString())
+        // Parse progress
+        const timeMatch = d.toString().match(/time=(\d+):(\d+):(\d+\.\d+)/)
+        if (timeMatch) {
+          const t = parseInt(timeMatch[1]) * 3600 + parseInt(timeMatch[2]) * 60 + parseFloat(timeMatch[3])
+          event.sender.send('ffmpeg:progress', { time: t })
+        }
+      })
+      proc.on('close', (code) => {
+        if (code === 0) {
+          resolve({ success: true })
+        } else {
+          resolve({ success: false, error: stderr.join('\n').slice(-2000) })
+        }
+      })
+      proc.on('error', (err) => resolve({ success: false, error: err.message }))
+    })
+  }
+)
+
+// ── IPC: Save file dialog ──────────────────────────────────────────────────
+ipcMain.handle('dialog:saveFile', async (_event, defaultName: string) => {
+  const result = await dialog.showSaveDialog(mainWindow!, {
+    defaultPath: defaultName,
+    filters: [{ name: 'MP4 Video', extensions: ['mp4'] }],
+    title: 'Export TeslaView Video'
+  })
+  if (result.canceled) return null
+  return result.filePath
+})
+
+// ── IPC: Open file in system player ───────────────────────────────────────
+ipcMain.handle('shell:openPath', async (_event, filePath: string) => {
+  const { shell } = await import('electron')
+  return shell.openPath(filePath)
+})

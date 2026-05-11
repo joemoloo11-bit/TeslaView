@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #0d0d0d;
+  color: #e5e5e5;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* Video element */
+video {
+  display: block;
+  background: #000;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Leaflet map override for dark theme */
+.leaflet-container {
+  background: #1a1a2e !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+.leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.8) contrast(1.1); }
+
+/* Speed gauge SVG */
+.gauge-tick { stroke: #444; }
+.gauge-tick-major { stroke: #666; }
+.gauge-needle { stroke: #E31937; stroke-linecap: round; }
+
+/* Telemetry overlay */
+.telemetry-overlay {
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Camera label badge */
+.camera-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Drag handle for resize */
+.resize-handle {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* Smooth transitions */
+.fade-in { animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Progress bar */
+.progress-bar {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.progress-bar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #E31937;
+  cursor: pointer;
+  margin-top: -5px;
+}
+.progress-bar::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, #E31937 var(--progress, 0%), #3a3a3a var(--progress, 0%));
+}
