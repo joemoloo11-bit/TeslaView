@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { pathToFileURL } from 'url'
 
 const api = {
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
@@ -28,9 +29,10 @@ const api = {
   },
 
   toLocalFileUrl: (absolutePath: string) => {
-    // Convert OS absolute path to safe localfile:// URL for video src
-    const encoded = absolutePath.replace(/\\/g, '/')
-    return `localfile://${encoded}`
+    // Convert to file:// URL, then rewrite scheme so the custom protocol
+    // handler (which forwards Range headers for video streaming) handles it.
+    const fileUrl = pathToFileURL(absolutePath).toString()
+    return fileUrl.replace('file://', 'localfile://')
   }
 }
 

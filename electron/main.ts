@@ -35,10 +35,13 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  // Register protocol to serve local video files safely
+  // Register protocol to serve local video files.
+  // We must forward the Range header so the video element can stream / seek.
   protocol.handle('localfile', (request) => {
     const filePath = decodeURIComponent(request.url.replace('localfile://', ''))
-    return net.fetch(pathToFileURL(filePath).toString())
+    return net.fetch(pathToFileURL(filePath).toString(), {
+      headers: Object.fromEntries(request.headers)
+    })
   })
 
   createWindow()
