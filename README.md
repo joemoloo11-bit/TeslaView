@@ -15,7 +15,7 @@ A cross-platform desktop app for viewing Tesla Sentry Mode and Dashcam footage w
 
 Handles all Tesla firmware naming conventions:
 - `front`, `left_repeater`, `right_repeater`, `back`
-- `left_pillar`, `right_pillar` (Sentry Six naming)
+- `left_pillar`, `right_pillar` (older firmware naming)
 - `left_b_pillar`, `right_b_pillar`, `narrow`, `cabin`
 
 ## Development

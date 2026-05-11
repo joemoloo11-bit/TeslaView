@@ -12,7 +12,7 @@ const LAYOUTS: { id: LayoutMode; label: string; icon: JSX.Element; minCams: numb
     label: '3×2',
     minCams: 1,
     icon: (
-      // 3 cols × 2 rows fixed grid (Sentry Six style)
+      // 3 cols × 2 rows fixed grid
       <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
         <rect x="1"   y="1"   width="4" height="6" rx="0.5"/>
         <rect x="6"   y="1"   width="4" height="6" rx="0.5"/>

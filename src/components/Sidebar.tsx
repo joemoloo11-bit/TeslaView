@@ -17,7 +17,7 @@ const TYPE_COLOR: Record<ClipType, { dot: string; badge: string }> = {
   RecentClips: { dot: 'bg-green-500', badge: 'text-green-400 bg-green-500/10 border-green-500/20' }
 }
 
-// Which camera fired — color coded like Sentry Six
+// Which camera fired — color coded per camera
 const TRIGGER_CAM_COLORS: Record<string, string> = {
   front:          'bg-blue-500/20 text-blue-300 border-blue-500/30',
   left_repeater:  'bg-purple-500/20 text-purple-300 border-purple-500/30',

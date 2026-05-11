@@ -142,8 +142,8 @@ export default function MultiCameraPlayer({
   )
 }
 
-// Sentry Six 3×2 fixed grid positions
-const SENTRY6_GRID: { row: number; col: number; id: CameraId }[] = [
+// 3×2 fixed grid positions — left pillars top, repeaters bottom
+const GRID3X2_POSITIONS: { row: number; col: number; id: CameraId }[] = [
   { row: 0, col: 0, id: 'left_b_pillar' },
   { row: 0, col: 1, id: 'front' },
   { row: 0, col: 2, id: 'right_b_pillar' },
@@ -153,7 +153,7 @@ const SENTRY6_GRID: { row: number; col: number; id: CameraId }[] = [
 ]
 
 // Extra cameras that don't fit the 3×2 grid
-const SENTRY6_EXTRA: CameraId[] = ['narrow', 'fisheye', 'cabin']
+const GRID3X2_EXTRA: CameraId[] = ['narrow', 'fisheye', 'cabin']
 
 function CameraGrid({
   cameras, layout, frontCamera, triggerCameraId,
@@ -204,13 +204,13 @@ function CameraGrid({
     return <div className="h-full">{pane(cameras[0], true)}</div>
   }
 
-  // Sentry Six 3×2 fixed-position grid
+  // 3×2 fixed-position grid
   if (layout === 'grid3x2') {
     const camMap = new Map(cameras.map(c => [c.id, c]))
     const masterCam = camMap.get('front') ?? cameras[0]
-    const extras = SENTRY6_EXTRA.map(id => camMap.get(id)).filter(Boolean) as CameraFile[]
+    const extras = GRID3X2_EXTRA.map(id => camMap.get(id)).filter(Boolean) as CameraFile[]
 
-    const gridCells = SENTRY6_GRID.map(pos => ({
+    const gridCells = GRID3X2_POSITIONS.map(pos => ({
       ...pos,
       cam: camMap.get(pos.id) ?? null
     }))
