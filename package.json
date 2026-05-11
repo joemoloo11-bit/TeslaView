@@ -55,21 +55,22 @@
       }
     ],
     "win": {
+      "sign": null,
+      "signingHashAlgorithms": null,
       "target": [
         {
           "target": "nsis",
           "arch": ["x64"]
         }
-      ],
-      "icon": "build/icon.ico"
+      ]
     },
     "mac": {
-      "target": "dmg",
-      "icon": "build/icon.icns"
+      "sign": null,
+      "identity": null,
+      "target": "dmg"
     },
     "linux": {
-      "target": "AppImage",
-      "icon": "build/icon.png"
+      "target": "AppImage"
     },
     "nsis": {
       "oneClick": false,
