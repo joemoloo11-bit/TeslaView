@@ -104,23 +104,23 @@ ipcMain.handle('ffmpeg:extractTelemetry', async (_event, videoPath: string) => {
   const ffmpegPath = getFfmpegPath()
   if (!ffmpegPath || !existsSync(videoPath)) return null
 
+  // "-i file" with no output: ffmpeg reads container headers, dumps metadata
+  // to stderr, then exits with code 1 — returns in milliseconds.
   return new Promise((resolve) => {
-    const args = ['-i', videoPath, '-f', 'null', '-']
-    const proc = spawn(ffmpegPath, args, { stdio: ['ignore', 'pipe', 'pipe'] })
+    const proc = spawn(ffmpegPath, ['-i', videoPath, '-hide_banner'], {
+      stdio: ['ignore', 'ignore', 'pipe']
+    })
     const stderr: string[] = []
     proc.stderr.on('data', (d: Buffer) => stderr.push(d.toString()))
     proc.on('error', () => resolve(null))
     proc.on('close', () => {
-      const stderrOut = stderr.join('')
-      const durationMatch = stderrOut.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/)
-      const fpsMatch = stderrOut.match(/(\d+(?:\.\d+)?)\s*fps/)
-      const resMatch = stderrOut.match(/(\d{3,4})x(\d{3,4})/)
+      const out = stderr.join('')
+      const durationMatch = out.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/)
+      const fpsMatch = out.match(/(\d+(?:\.\d+)?)\s*fps/)
+      const resMatch = out.match(/(\d{3,4})x(\d{3,4})/)
       if (durationMatch) {
-        const h = parseInt(durationMatch[1])
-        const m = parseInt(durationMatch[2])
-        const s = parseFloat(durationMatch[3])
         resolve({
-          duration: h * 3600 + m * 60 + s,
+          duration: parseInt(durationMatch[1]) * 3600 + parseInt(durationMatch[2]) * 60 + parseFloat(durationMatch[3]),
           fps: fpsMatch ? parseFloat(fpsMatch[1]) : 25,
           width: resMatch ? parseInt(resMatch[1]) : 1280,
           height: resMatch ? parseInt(resMatch[2]) : 960
