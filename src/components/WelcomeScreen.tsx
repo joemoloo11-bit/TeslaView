@@ -5,39 +5,45 @@ interface Props {
 
 export default function WelcomeScreen({ onOpenFolder, loading }: Props) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-6 bg-tesla-darker select-none">
-      <svg width="72" height="72" viewBox="0 0 100 100" fill="#E31937" opacity={0.8}>
-        <path d="M50 0C22.4 0 0 22.4 0 50s22.4 50 50 50 50-22.4 50-50S77.6 0 50 0zm0 15c7.2 0 14 1.8 20 5L50 62 30 20c6-3.2 12.8-5 20-5zm-27 11.5l18 38.5L13 50c0-8.8 3.6-16.7 10-23.5zm54 0c6.4 6.8 10 14.7 10 23.5L68 65l18-38.5zm-27 58.5c-7.2 0-14-1.8-20-5l20-42 20 42c-6 3.2-12.8 5-20 5z"/>
-      </svg>
-
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold text-tesla-text mb-1">TeslaView</h1>
-        <p className="text-sm text-tesla-muted">Sentry & Dashcam Video Viewer</p>
+    <div className="flex-1 flex flex-col items-center justify-center gap-8 bg-[#0a0a0a] select-none px-8">
+      {/* Logo mark */}
+      <div className="flex flex-col items-center gap-3">
+        <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-[#E31937] shadow-lg shadow-red-900/30">
+          <svg width="28" height="28" viewBox="0 0 14 14" fill="white">
+            <path d="M7 0L8.5 4H13L9.5 6.5L11 11L7 8L3 11L4.5 6.5L1 4H5.5L7 0Z"/>
+          </svg>
+        </div>
+        <div className="text-center">
+          <h1 className="text-xl font-semibold text-white tracking-tight">TeslaView</h1>
+          <p className="text-xs text-white/30 mt-0.5">Sentry & Dashcam Viewer</p>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-2 items-center">
+      {/* CTA */}
+      <div className="flex flex-col items-center gap-2">
         <button
           onClick={onOpenFolder}
           disabled={loading}
-          className="px-6 py-3 bg-tesla-red hover:bg-red-700 disabled:opacity-50 text-white font-medium rounded-lg transition-colors"
+          className="px-6 py-2.5 bg-[#E31937] hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg shadow-red-900/20 transition-colors"
         >
-          {loading ? 'Loading…' : 'Open TeslaCam Folder'}
+          {loading ? 'Scanning…' : 'Open TeslaCam Folder'}
         </button>
-        <p className="text-xs text-tesla-muted max-w-xs text-center mt-1">
-          Select your USB drive root, TeslaCam folder, or any folder containing Tesla dashcam clips
+        <p className="text-[11px] text-white/25 text-center max-w-xs">
+          Select your USB drive root, TeslaCam folder, or any folder with Tesla clips
         </p>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-3 text-center max-w-sm">
+      {/* Feature grid */}
+      <div className="grid grid-cols-3 gap-3 max-w-sm w-full">
         {[
-          { icon: '🎥', label: 'Multi-Camera', desc: 'Sync all 4 angles' },
-          { icon: '📡', label: 'Telemetry HUD', desc: 'Speed, GPS & more' },
-          { icon: '💾', label: 'Export', desc: 'H.264 / H.265' }
-        ].map((f) => (
-          <div key={f.label} className="bg-tesla-panel border border-tesla-border rounded-lg p-3">
-            <div className="text-xl mb-1">{f.icon}</div>
-            <div className="text-xs font-medium text-tesla-text">{f.label}</div>
-            <div className="text-xs text-tesla-muted">{f.desc}</div>
+          { label: 'Up to 9 cameras', sub: 'HW4 all angles', icon: '🎥' },
+          { label: 'Telemetry HUD', sub: 'Speed, GPS, gear', icon: '📡' },
+          { label: 'H.264 / H.265', sub: 'Export with FFmpeg', icon: '💾' }
+        ].map(f => (
+          <div key={f.label} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 text-center">
+            <div className="text-lg mb-1.5">{f.icon}</div>
+            <p className="text-[11px] font-medium text-white/70">{f.label}</p>
+            <p className="text-[10px] text-white/30 mt-0.5">{f.sub}</p>
           </div>
         ))}
       </div>

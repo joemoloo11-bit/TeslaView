@@ -13,12 +13,10 @@ export default function App() {
   const [showExport, setShowExport] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [sidebarWidth, setSidebarWidth] = useState(280)
-  const [showSidebar, setShowSidebar] = useState(true)
+  const [sidebarWidth, setSidebarWidth] = useState(260)
   const [speedUnit, setSpeedUnit] = useState<'mph' | 'kph'>('mph')
   const [showTelemetry, setShowTelemetry] = useState(true)
 
-  // Playback state lifted here so controls can talk to player
   const playerRef = useRef<{ seek: (t: number) => void; togglePlay: () => void } | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -36,7 +34,7 @@ export default function App() {
     try {
       const { events: parsed } = await parseTeslaCamFolder(folderPath)
       if (parsed.length === 0) {
-        setError('No Tesla dashcam clips found. Make sure you selected a TeslaCam folder or USB drive root.')
+        setError('No Tesla dashcam clips found. Select a TeslaCam folder or USB drive root.')
       } else {
         setEvents(parsed)
         setSelectedEvent(parsed[0])
@@ -55,14 +53,12 @@ export default function App() {
     setDuration(0)
   }, [])
 
-  // Drag-to-resize sidebar
   const handleSidebarResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     const startX = e.clientX
     const startWidth = sidebarWidth
     const onMove = (me: MouseEvent) => {
-      const newW = Math.max(200, Math.min(500, startWidth + me.clientX - startX))
-      setSidebarWidth(newW)
+      setSidebarWidth(Math.max(200, Math.min(480, startWidth + me.clientX - startX)))
     }
     const onUp = () => {
       window.removeEventListener('mousemove', onMove)
@@ -73,80 +69,86 @@ export default function App() {
   }, [sidebarWidth])
 
   return (
-    <div className="flex flex-col h-screen bg-tesla-darker overflow-hidden">
-      {/* Title bar / top nav */}
-      <div className="flex items-center h-10 px-3 bg-tesla-dark border-b border-tesla-border shrink-0 select-none">
-        <div className="flex items-center gap-2">
-          {/* Tesla logo mark */}
-          <svg width="18" height="18" viewBox="0 0 100 100" fill="#E31937">
-            <path d="M50 0C22.4 0 0 22.4 0 50s22.4 50 50 50 50-22.4 50-50S77.6 0 50 0zm0 15c7.2 0 14 1.8 20 5L50 62 30 20c6-3.2 12.8-5 20-5zm-27 11.5l18 38.5L13 50c0-8.8 3.6-16.7 10-23.5zm54 0c6.4 6.8 10 14.7 10 23.5L68 65l18-38.5zm-27 58.5c-7.2 0-14-1.8-20-5l20-42 20 42c-6 3.2-12.8 5-20 5z"/>
-          </svg>
-          <span className="text-sm font-semibold text-tesla-text tracking-wide">TeslaView</span>
+    <div className="flex flex-col h-screen bg-[#0a0a0a] overflow-hidden">
+      {/* ── Title bar ─────────────────────────────────────────────── */}
+      <div className="flex items-center h-11 px-4 bg-[#111] border-b border-white/[0.07] shrink-0 select-none">
+        {/* Logo */}
+        <div className="flex items-center gap-2.5 mr-6">
+          <div className="flex items-center justify-center w-6 h-6 rounded bg-[#E31937]">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="white">
+              <path d="M7 0L8.5 4H13L9.5 6.5L11 11L7 8L3 11L4.5 6.5L1 4H5.5L7 0Z"/>
+            </svg>
+          </div>
+          <span className="text-sm font-semibold text-white tracking-tight">TeslaView</span>
         </div>
+
+        {/* Open folder */}
+        <button
+          onClick={openFolder}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-white/8 hover:bg-white/12 disabled:opacity-50 text-white/80 rounded-md border border-white/10 transition-colors"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" opacity={0.7}>
+            <path d="M1 2.5A1.5 1.5 0 012.5 1h2.086a1.5 1.5 0 011.06.44l.915.914A.5.5 0 006.914 2.5H9.5A1.5 1.5 0 0111 4v5.5A1.5 1.5 0 019.5 11h-7A1.5 1.5 0 011 9.5V2.5z"/>
+          </svg>
+          {loading ? 'Loading…' : 'Open Folder'}
+        </button>
 
         <div className="flex-1" />
 
+        {/* HUD toggle */}
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => setShowSidebar((v) => !v)}
-            className="px-2 py-1 text-xs text-tesla-muted hover:text-tesla-text hover:bg-white/5 rounded transition-colors"
-            title="Toggle sidebar"
+          <ToggleBtn
+            active={showTelemetry}
+            onClick={() => setShowTelemetry(v => !v)}
+            title="Toggle telemetry HUD"
           >
-            ☰
-          </button>
-          <button
-            onClick={() => setSpeedUnit((u) => (u === 'mph' ? 'kph' : 'mph'))}
-            className="px-2 py-1 text-xs text-tesla-muted hover:text-tesla-text hover:bg-white/5 rounded transition-colors"
+            HUD
+          </ToggleBtn>
+
+          {/* Speed unit */}
+          <ToggleBtn
+            active={false}
+            onClick={() => setSpeedUnit(u => u === 'mph' ? 'kph' : 'mph')}
             title="Toggle speed unit"
           >
             {speedUnit.toUpperCase()}
-          </button>
-          <button
-            onClick={() => setShowTelemetry((v) => !v)}
-            className={`px-2 py-1 text-xs rounded transition-colors ${showTelemetry ? 'text-tesla-accent bg-tesla-accent/10' : 'text-tesla-muted hover:text-tesla-text hover:bg-white/5'}`}
-            title="Toggle telemetry overlay"
-          >
-            HUD
-          </button>
+          </ToggleBtn>
+
+          {/* Export */}
           {selectedEvent && (
             <button
               onClick={() => setShowExport(true)}
-              className="ml-1 px-3 py-1 text-xs font-medium bg-tesla-red hover:bg-red-700 text-white rounded transition-colors"
+              className="ml-2 flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-[#E31937] hover:bg-red-700 text-white rounded-md transition-colors"
             >
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
+                <path d="M6 1v7M3 5l3 3 3-3M1 9v1.5A.5.5 0 001.5 11h9a.5.5 0 00.5-.5V9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+              </svg>
               Export
             </button>
           )}
-          <button
-            onClick={openFolder}
-            className="ml-1 px-3 py-1 text-xs font-medium bg-white/10 hover:bg-white/15 text-tesla-text rounded transition-colors"
-          >
-            Open Folder
-          </button>
         </div>
       </div>
 
-      {/* Main content */}
+      {/* ── Main layout ───────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        {showSidebar && (
-          <>
-            <div style={{ width: sidebarWidth, minWidth: sidebarWidth }} className="flex flex-col overflow-hidden">
-              <Sidebar
-                events={events}
-                selectedEvent={selectedEvent}
-                onSelectEvent={handleEventSelect}
-                onOpenFolder={openFolder}
-                loading={loading}
-                error={error}
-              />
-            </div>
-            {/* Drag handle */}
-            <div
-              className="w-1 bg-tesla-border hover:bg-tesla-accent/50 cursor-col-resize transition-colors shrink-0"
-              onMouseDown={handleSidebarResize}
-            />
-          </>
-        )}
+        <div style={{ width: sidebarWidth, minWidth: sidebarWidth }} className="flex flex-col overflow-hidden shrink-0">
+          <Sidebar
+            events={events}
+            selectedEvent={selectedEvent}
+            onSelectEvent={handleEventSelect}
+            onOpenFolder={openFolder}
+            loading={loading}
+            error={error}
+          />
+        </div>
+
+        {/* Resize handle */}
+        <div
+          className="w-px bg-white/[0.06] hover:bg-blue-500/50 cursor-col-resize shrink-0 transition-colors"
+          onMouseDown={handleSidebarResize}
+        />
 
         {/* Video area */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -171,14 +173,27 @@ export default function App() {
         </div>
       </div>
 
-      {/* Export dialog */}
       {showExport && selectedEvent && (
-        <ExportDialog
-          event={selectedEvent}
-          layout={layout}
-          onClose={() => setShowExport(false)}
-        />
+        <ExportDialog event={selectedEvent} layout={layout} onClose={() => setShowExport(false)} />
       )}
     </div>
+  )
+}
+
+function ToggleBtn({ active, onClick, title, children }: {
+  active: boolean; onClick: () => void; title: string; children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={`px-2.5 py-1 text-[11px] font-medium rounded border transition-colors ${
+        active
+          ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+          : 'text-white/40 border-transparent hover:text-white/60 hover:bg-white/5'
+      }`}
+    >
+      {children}
+    </button>
   )
 }

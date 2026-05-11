@@ -1,21 +1,41 @@
 import type { CameraFile, CameraId, ClipType, EventJson, TeslaEvent } from '../types/tesla'
 
-// Camera suffixes Tesla uses in filenames — ordered by priority for display
+// Tesla event.json camera field maps numeric IDs to camera positions
+// (from Tesla's official dashcam.proto and community research)
+const CAMERA_INDEX_MAP: Record<number, CameraId> = {
+  0: 'front',
+  1: 'fisheye',
+  2: 'narrow',
+  3: 'left_repeater',
+  4: 'right_repeater',
+  5: 'left_b_pillar',
+  6: 'right_b_pillar',
+  7: 'back',
+  8: 'cabin'
+}
+
+function cameraIndexToId(index: number): CameraId | undefined {
+  return CAMERA_INDEX_MAP[index]
+}
+
+// All known Tesla camera filename suffixes across all hardware versions
+// Order matters: more specific patterns before generic ones
 const CAMERA_PATTERNS: { pattern: RegExp; id: CameraId; label: string }[] = [
-  { pattern: /front(?!_)/i,                         id: 'front',           label: 'Front' },
-  { pattern: /left_repeater/i,                      id: 'left_repeater',   label: 'Left' },
-  { pattern: /right_repeater/i,                     id: 'right_repeater',  label: 'Right' },
-  { pattern: /back/i,                               id: 'back',            label: 'Rear' },
-  { pattern: /narrow/i,                             id: 'narrow',          label: 'Narrow' },
-  // Sentry-Six uses left_pillar / right_pillar; also accept left_b_pillar / right_b_pillar
-  { pattern: /left_(?:b_)?pillar/i,                 id: 'left_b_pillar',   label: 'Left Pillar' },
-  { pattern: /right_(?:b_)?pillar/i,                id: 'right_b_pillar',  label: 'Right Pillar' },
-  { pattern: /cabin|interior/i,                     id: 'cabin',           label: 'Cabin' }
+  { pattern: /left_repeater/i,          id: 'left_repeater',  label: 'Left' },
+  { pattern: /right_repeater/i,         id: 'right_repeater', label: 'Right' },
+  { pattern: /left_(?:b_)?pillar/i,     id: 'left_b_pillar',  label: 'Left Pillar' },
+  { pattern: /right_(?:b_)?pillar/i,    id: 'right_b_pillar', label: 'Right Pillar' },
+  { pattern: /cabin|interior/i,         id: 'cabin',          label: 'Cabin' },
+  { pattern: /fisheye|wide/i,           id: 'fisheye',        label: 'Wide' },
+  { pattern: /narrow/i,                 id: 'narrow',         label: 'Narrow' },
+  { pattern: /back|rear/i,              id: 'back',           label: 'Rear' },
+  { pattern: /front/i,                  id: 'front',          label: 'Front' },
 ]
 
+// Display order in the player UI — front prominent, then sides, rear, then extras
 const PREFERRED_ORDER: CameraId[] = [
   'front', 'left_repeater', 'right_repeater', 'back',
-  'narrow', 'left_b_pillar', 'right_b_pillar', 'cabin'
+  'left_b_pillar', 'right_b_pillar', 'narrow', 'fisheye', 'cabin'
 ]
 
 // Matches Tesla timestamp filename: 2023-12-25_15-30-00 or 20231225_153000
@@ -134,9 +154,12 @@ function parseSentryFolder(
 
     const subEvents = groupByTimestamp(mp4Files, folder.path, 'SentryClips')
 
-    // Attach event.json data to each clip in this folder
+    // Attach event.json data and resolve which camera triggered the event
     for (const ev of subEvents) {
       ev.eventJson = eventJson
+      if (eventJson?.camera !== undefined) {
+        ev.triggerCameraId = cameraIndexToId(eventJson.camera)
+      }
     }
 
     events.push(...subEvents)

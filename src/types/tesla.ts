@@ -1,4 +1,14 @@
-export type CameraId = 'front' | 'left_repeater' | 'right_repeater' | 'back' | 'narrow' | 'left_b_pillar' | 'right_b_pillar' | 'cabin'
+// HW4 cars have up to 9 camera positions
+export type CameraId =
+  | 'front'
+  | 'left_repeater'
+  | 'right_repeater'
+  | 'back'
+  | 'narrow'          // front telephoto (HW3+)
+  | 'left_b_pillar'   // also called left_pillar on newer firmware
+  | 'right_b_pillar'  // also called right_pillar on newer firmware
+  | 'cabin'           // interior/cabin cam
+  | 'fisheye'         // front wide-angle (HW4)
 
 export interface CameraFile {
   id: CameraId
@@ -29,6 +39,7 @@ export interface TeslaEvent {
   folderPath: string
   cameras: CameraFile[]
   eventJson?: EventJson
+  triggerCameraId?: CameraId  // which camera triggered the sentry event
   thumbnail?: string
 }
 

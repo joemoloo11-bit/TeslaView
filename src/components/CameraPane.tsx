@@ -1,15 +1,16 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
-import type { CameraFile } from '../types/tesla'
+import type { CameraFile, CameraId } from '../types/tesla'
 
-const CAMERA_LABEL_COLORS: Record<string, string> = {
-  front:           'bg-blue-900/70 text-blue-200',
-  left_repeater:   'bg-purple-900/70 text-purple-200',
-  right_repeater:  'bg-indigo-900/70 text-indigo-200',
-  back:            'bg-orange-900/70 text-orange-200',
-  narrow:          'bg-cyan-900/70 text-cyan-200',
-  left_b_pillar:   'bg-pink-900/70 text-pink-200',
-  right_b_pillar:  'bg-rose-900/70 text-rose-200',
-  cabin:           'bg-yellow-900/70 text-yellow-200'
+const LABEL_COLORS: Partial<Record<CameraId, string>> = {
+  front:          'bg-blue-500/70',
+  left_repeater:  'bg-purple-500/70',
+  right_repeater: 'bg-indigo-500/70',
+  back:           'bg-orange-500/70',
+  narrow:         'bg-cyan-500/70',
+  left_b_pillar:  'bg-pink-500/70',
+  right_b_pillar: 'bg-rose-500/70',
+  cabin:          'bg-yellow-500/70',
+  fisheye:        'bg-teal-500/70',
 }
 
 interface Props {
@@ -21,6 +22,7 @@ interface Props {
   onCanPlay: () => void
   onDoubleClick: () => void
   showLabel?: boolean
+  isTriggered?: boolean  // highlight the camera that triggered the sentry event
 }
 
 export default function CameraPane({
@@ -31,38 +33,30 @@ export default function CameraPane({
   onWaiting,
   onCanPlay,
   onDoubleClick,
-  showLabel
+  showLabel,
+  isTriggered
 }: Props) {
-  const videoRef = useRef<HTMLVideoElement>(null)
   const [hasError, setHasError] = useState(false)
-  const labelColor = CAMERA_LABEL_COLORS[camera.id] ?? 'bg-gray-900/70 text-gray-200'
+  const dotColor = LABEL_COLORS[camera.id] ?? 'bg-gray-500/70'
 
   const setRef = useCallback(
     (el: HTMLVideoElement | null) => {
-      // @ts-expect-error mutable ref
-      videoRef.current = el
       registerVideo(camera.id, el)
       setHasError(false)
     },
     [camera.id, registerVideo]
   )
 
-  // Re-register when camera source changes
-  useEffect(() => {
-    setHasError(false)
-  }, [camera.url])
-
-  const handleError = useCallback(() => {
-    setHasError(true)
-  }, [])
+  useEffect(() => { setHasError(false) }, [camera.url])
 
   return (
-    <div className="relative w-full h-full bg-black overflow-hidden group">
+    <div className={`relative w-full h-full bg-black overflow-hidden group ${isTriggered ? 'ring-2 ring-inset ring-red-500/60' : ''}`}>
       {hasError ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-tesla-muted">
-          <span className="text-2xl">⚠️</span>
-          <span className="text-xs">{camera.label}</span>
-          <span className="text-[10px] opacity-60">Could not load video</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-white/20 text-center">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" opacity={0.4}>
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"/>
+          </svg>
+          <span className="text-[10px]">{camera.label}</span>
         </div>
       ) : (
         <video
@@ -74,26 +68,30 @@ export default function CameraPane({
           onEnded={onEnded}
           onWaiting={onWaiting}
           onCanPlay={onCanPlay}
-          onError={handleError}
+          onError={() => setHasError(true)}
           onDoubleClick={onDoubleClick}
           className="w-full h-full object-contain bg-black"
-          style={{ display: 'block' }}
         />
       )}
 
-      {/* Camera label */}
+      {/* Camera label — bottom left */}
       {showLabel && (
-        <div className={`absolute bottom-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide pointer-events-none ${labelColor} backdrop-blur-sm`}>
-          {camera.label}
+        <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+          <span className="text-[9px] font-semibold text-white/80 uppercase tracking-wide drop-shadow-lg">
+            {camera.label}
+          </span>
         </div>
       )}
 
-      {/* Native resolution badge (top-right, shown on hover) */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-black/60 text-white/70 backdrop-blur-sm">
-          1280×960
-        </span>
-      </div>
+      {/* Triggered indicator */}
+      {isTriggered && (
+        <div className="absolute top-1.5 right-1.5 pointer-events-none">
+          <span className="text-[9px] font-bold text-red-400 bg-black/60 px-1.5 py-0.5 rounded uppercase tracking-wide">
+            ● triggered
+          </span>
+        </div>
+      )}
     </div>
   )
 }

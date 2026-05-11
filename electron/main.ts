@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron'
-import { join, extname } from 'path'
+import { join } from 'path'
 import { existsSync, readdirSync, statSync, readFileSync } from 'fs'
 import { pathToFileURL } from 'url'
 import { spawn } from 'child_process'
@@ -15,7 +15,7 @@ function createWindow(): void {
     backgroundColor: '#0d0d0d',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       webSecurity: false // needed to allow local video file access via file://
