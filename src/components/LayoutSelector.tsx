@@ -8,6 +8,22 @@ interface Props {
 
 const LAYOUTS: { id: LayoutMode; label: string; icon: JSX.Element; minCams: number }[] = [
   {
+    id: 'sentry6',
+    label: '3×2',
+    minCams: 1,
+    icon: (
+      // 3 cols × 2 rows fixed grid (Sentry Six style)
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <rect x="1"   y="1"   width="4" height="6" rx="0.5"/>
+        <rect x="6"   y="1"   width="4" height="6" rx="0.5"/>
+        <rect x="11"  y="1"   width="4" height="6" rx="0.5"/>
+        <rect x="1"   y="9"   width="4" height="6" rx="0.5" opacity="0.6"/>
+        <rect x="6"   y="9"   width="4" height="6" rx="0.5" opacity="0.6"/>
+        <rect x="11"  y="9"   width="4" height="6" rx="0.5" opacity="0.6"/>
+      </svg>
+    )
+  },
+  {
     id: 'tesla',
     label: 'Tesla',
     minCams: 1,

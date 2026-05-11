@@ -85,41 +85,32 @@ ipcMain.handle('fs:stat', (_event, filePath: string) => {
   return { isDirectory: s.isDirectory(), size: s.size, mtime: s.mtimeMs }
 })
 
-// ── IPC: Get ffmpeg path ───────────────────────────────────────────────────
-ipcMain.handle('ffmpeg:path', () => {
+// Resolve ffmpeg binary — works both in dev and in the packaged app.
+// With asarUnpack, require('ffmpeg-static') already returns the .asar.unpacked path.
+function getFfmpegPath(): string | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const ffmpegPath = require('ffmpeg-static') as string
-    return ffmpegPath
-  } catch {
-    return null
-  }
-})
+    const p = require('ffmpeg-static') as string | null
+    if (p && existsSync(p)) return p
+  } catch { /* not available */ }
+  return null
+}
+
+// ── IPC: Get ffmpeg path ───────────────────────────────────────────────────
+ipcMain.handle('ffmpeg:path', () => getFfmpegPath())
 
 // ── IPC: Extract telemetry via ffmpeg ─────────────────────────────────────
 ipcMain.handle('ffmpeg:extractTelemetry', async (_event, videoPath: string) => {
-  let ffmpegPath: string | null = null
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    ffmpegPath = require('ffmpeg-static') as string
-  } catch {
-    return null
-  }
+  const ffmpegPath = getFfmpegPath()
   if (!ffmpegPath || !existsSync(videoPath)) return null
 
   return new Promise((resolve) => {
-    const args = [
-      '-i', videoPath,
-      '-codec', 'copy',
-      '-map', '0:v:0',
-      '-f', 'data',
-      '-'
-    ]
-    const proc = spawn(ffmpegPath!, args, { stdio: ['ignore', 'pipe', 'pipe'] })
+    const args = ['-i', videoPath, '-f', 'null', '-']
+    const proc = spawn(ffmpegPath, args, { stdio: ['ignore', 'pipe', 'pipe'] })
     const stderr: string[] = []
     proc.stderr.on('data', (d: Buffer) => stderr.push(d.toString()))
+    proc.on('error', () => resolve(null))
     proc.on('close', () => {
-      // Parse ffmpeg output for duration and other metadata
       const stderrOut = stderr.join('')
       const durationMatch = stderrOut.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/)
       const fpsMatch = stderrOut.match(/(\d+(?:\.\d+)?)\s*fps/)
@@ -156,16 +147,11 @@ ipcMain.handle(
       telemetryData: unknown
     }
   ) => {
-    let ffmpegPath: string | null = null
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      ffmpegPath = require('ffmpeg-static') as string
-    } catch {
-      return { success: false, error: 'ffmpeg not available' }
-    }
+    const ffmpegPath = getFfmpegPath()
+    if (!ffmpegPath) return { success: false, error: 'ffmpeg not found. Reinstall the app.' }
 
     const { cameras, layout, outputPath, quality, codec, resolution } = opts
-    if (!ffmpegPath || cameras.length === 0) return { success: false, error: 'No cameras selected' }
+    if (cameras.length === 0) return { success: false, error: 'No cameras selected' }
 
     // Build filter complex based on layout
     const inputs = cameras.map((c) => ['-i', c.path]).flat()
@@ -195,9 +181,9 @@ ipcMain.handle(
         filterComplex = `${scales}[v0][v1]hstack=inputs=2[top];[v2][v3]hstack=inputs=2[bot];[top][bot]vstack=inputs=2[out]`
       }
       mapArgs = ['-map', '[out]']
-    } else if (layout === 'tesla' && cameras.length >= 1) {
-      // Front large top, smaller cameras bottom row
-      const cnt = Math.min(cameras.length, 4)
+    } else if ((layout === 'tesla' || layout === 'sentry6') && cameras.length >= 1) {
+      // Front large top (tesla) or 3×2 grid (sentry6) — same export logic
+      const cnt = Math.min(cameras.length, 6)
       const scales = Array.from({ length: cnt }, (_, i) => scalePart(i)).join('')
       if (cnt === 1) {
         filterComplex = `${scales}[v0]null[out]`
@@ -205,8 +191,12 @@ ipcMain.handle(
         filterComplex = `${scales}[v0][v1]vstack=inputs=2[out]`
       } else if (cnt === 3) {
         filterComplex = `${scales}[v1][v2]hstack=inputs=2[bot];[v0][bot]vstack=inputs=2[out]`
-      } else {
+      } else if (cnt === 4) {
         filterComplex = `${scales}[v1][v2][v3]hstack=inputs=3[bot];[v0][bot]vstack=inputs=2[out]`
+      } else if (cnt === 5) {
+        filterComplex = `${scales}[v0][v1][v2]hstack=inputs=3[top];[v3][v4]hstack=inputs=2,pad=iw*3/2:ih:iw/4[bot];[top][bot]vstack=inputs=2[out]`
+      } else {
+        filterComplex = `${scales}[v0][v1][v2]hstack=inputs=3[top];[v3][v4][v5]hstack=inputs=3[bot];[top][bot]vstack=inputs=2[out]`
       }
       mapArgs = ['-map', '[out]']
     } else {

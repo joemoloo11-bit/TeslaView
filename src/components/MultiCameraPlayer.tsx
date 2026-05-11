@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import type { TeslaEvent, LayoutMode, CameraFile } from '../types/tesla'
+import type { TeslaEvent, LayoutMode, CameraFile, CameraId } from '../types/tesla'
 import { useVideoSync } from '../hooks/useVideoSync'
 import { useTelemetry } from '../hooks/useTelemetry'
 import CameraPane from './CameraPane'
@@ -68,7 +68,7 @@ export default function MultiCameraPlayer({
       const active = cameras.find(c => c.id === (activeCamId ?? cameras[0]?.id))
       return active ? [active] : cameras.slice(0, 1)
     }
-    return cameras // show all cameras in grid/tesla layout
+    return cameras
   }, [cameras, layout, activeCamId])
 
   return (
@@ -142,6 +142,19 @@ export default function MultiCameraPlayer({
   )
 }
 
+// Sentry Six 3×2 fixed grid positions
+const SENTRY6_GRID: { row: number; col: number; id: CameraId }[] = [
+  { row: 0, col: 0, id: 'left_b_pillar' },
+  { row: 0, col: 1, id: 'front' },
+  { row: 0, col: 2, id: 'right_b_pillar' },
+  { row: 1, col: 0, id: 'left_repeater' },
+  { row: 1, col: 1, id: 'back' },
+  { row: 1, col: 2, id: 'right_repeater' },
+]
+
+// Extra cameras that don't fit the 3×2 grid
+const SENTRY6_EXTRA: CameraId[] = ['narrow', 'fisheye', 'cabin']
+
 function CameraGrid({
   cameras, layout, frontCamera, triggerCameraId,
   registerVideo, onMetadata, onEnded, onWaiting, onCanPlay, onTogglePlay
@@ -180,9 +193,59 @@ function CameraGrid({
     />
   )
 
+  const emptyCell = (label: string) => (
+    <div className="h-full flex items-center justify-center bg-[#080808]">
+      <span className="text-[10px] text-white/15 uppercase tracking-widest">{label}</span>
+    </div>
+  )
+
   // Single camera
   if (layout === 'single' || cameras.length === 1) {
     return <div className="h-full">{pane(cameras[0], true)}</div>
+  }
+
+  // Sentry Six 3×2 fixed-position grid
+  if (layout === 'sentry6') {
+    const camMap = new Map(cameras.map(c => [c.id, c]))
+    const masterCam = camMap.get('front') ?? cameras[0]
+    const extras = SENTRY6_EXTRA.map(id => camMap.get(id)).filter(Boolean) as CameraFile[]
+
+    const gridCells = SENTRY6_GRID.map(pos => ({
+      ...pos,
+      cam: camMap.get(pos.id) ?? null
+    }))
+
+    return (
+      <div className="h-full flex flex-col" style={{ gap: 2, background: '#050505' }}>
+        <div
+          style={{
+            flex: extras.length > 0 ? '0 0 50%' : 1,
+            minHeight: 0,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gridTemplateRows: 'repeat(2, 1fr)',
+            gap: 2
+          }}
+        >
+          {gridCells.map(cell => (
+            <div key={`${cell.row}-${cell.col}`} style={{ minHeight: 0, minWidth: 0 }}>
+              {cell.cam
+                ? pane(cell.cam, cell.cam.id === masterCam.id)
+                : emptyCell(cell.id.replace(/_/g, ' '))}
+            </div>
+          ))}
+        </div>
+        {extras.length > 0 && (
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 2 }}>
+            {extras.map(cam => (
+              <div key={cam.id} style={{ flex: 1, minWidth: 0 }}>
+                {pane(cam)}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
   }
 
   // Tesla layout: front large on top, rest in a row below

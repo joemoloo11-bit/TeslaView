@@ -47,12 +47,8 @@
     "files": [
       "out/**/*"
     ],
-    "extraResources": [
-      {
-        "from": "node_modules/ffmpeg-static",
-        "to": "ffmpeg-static",
-        "filter": ["**/*"]
-      }
+    "asarUnpack": [
+      "**/node_modules/ffmpeg-static/**"
     ],
     "win": {
       "sign": null,
