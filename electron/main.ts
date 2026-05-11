@@ -181,8 +181,8 @@ ipcMain.handle(
         filterComplex = `${scales}[v0][v1]hstack=inputs=2[top];[v2][v3]hstack=inputs=2[bot];[top][bot]vstack=inputs=2[out]`
       }
       mapArgs = ['-map', '[out]']
-    } else if ((layout === 'tesla' || layout === 'sentry6') && cameras.length >= 1) {
-      // Front large top (tesla) or 3×2 grid (sentry6) — same export logic
+    } else if ((layout === 'tesla' || layout === 'grid3x2') && cameras.length >= 1) {
+      // Front large top (tesla) or 3×2 grid (grid3x2) — same export logic
       const cnt = Math.min(cameras.length, 6)
       const scales = Array.from({ length: cnt }, (_, i) => scalePart(i)).join('')
       if (cnt === 1) {

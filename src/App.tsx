@@ -9,7 +9,7 @@ import WelcomeScreen from './components/WelcomeScreen'
 export default function App() {
   const [events, setEvents] = useState<TeslaEvent[]>([])
   const [selectedEvent, setSelectedEvent] = useState<TeslaEvent | null>(null)
-  const [layout, setLayout] = useState<LayoutMode>('sentry6')
+  const [layout, setLayout] = useState<LayoutMode>('grid3x2')
   const [showExport, setShowExport] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

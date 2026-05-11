@@ -8,7 +8,7 @@ interface Props {
 
 const LAYOUTS: { id: LayoutMode; label: string; icon: JSX.Element; minCams: number }[] = [
   {
-    id: 'sentry6',
+    id: 'grid3x2',
     label: '3×2',
     minCams: 1,
     icon: (

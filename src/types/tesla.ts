@@ -68,7 +68,7 @@ export interface ClipTelemetry {
   source: 'sei' | 'json' | 'none'
 }
 
-export type LayoutMode = 'sentry6' | 'tesla' | '2x2' | 'front-main' | 'single'
+export type LayoutMode = 'grid3x2' | 'tesla' | '2x2' | 'front-main' | 'single'
 
 export interface VideoMetadata {
   duration: number

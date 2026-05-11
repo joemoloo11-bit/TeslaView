@@ -9,7 +9,7 @@ interface Props {
 }
 
 const LAYOUT_LABELS: Record<LayoutMode, string> = {
-  sentry6: '3×2 Grid (Sentry Six)',
+  grid3x2: '3×2 Grid',
   tesla: 'Tesla Style (front + row)',
   '2x2': '2×2 Grid',
   'front-main': 'Side-by-side',

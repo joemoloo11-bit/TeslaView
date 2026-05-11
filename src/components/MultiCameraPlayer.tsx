@@ -205,7 +205,7 @@ function CameraGrid({
   }
 
   // Sentry Six 3×2 fixed-position grid
-  if (layout === 'sentry6') {
+  if (layout === 'grid3x2') {
     const camMap = new Map(cameras.map(c => [c.id, c]))
     const masterCam = camMap.get('front') ?? cameras[0]
     const extras = SENTRY6_EXTRA.map(id => camMap.get(id)).filter(Boolean) as CameraFile[]
